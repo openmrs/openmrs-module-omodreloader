@@ -8,7 +8,7 @@
 	<packaging>pom</packaging>
 	<name>Omod Reloader Module</name>
 	<description>Reloads modules whenever respective omods change in specified local paths</description>
-	<url>https://wiki.openmrs.org/display/docs/Omod+Reloader+Module</url>
+	<url>https://github.com/openmrs/openmrs-module-omodreloader</url>
 	
 	<developers>
 		<developer>
