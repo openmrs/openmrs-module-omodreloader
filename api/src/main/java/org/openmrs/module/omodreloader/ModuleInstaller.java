@@ -80,9 +80,6 @@ public class ModuleInstaller {
 				}
 			}
 			
-			ModuleFactory.startModule(module);
-			WebModuleUtil.startModule(module, ServletContextHolder.servletContext, false);
-			
 			inputStream.close();
 			fileInputStream.close();
 		}
