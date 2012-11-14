@@ -48,7 +48,11 @@ public class ModuleFileListener implements FileListener {
 		if ("omod".equals(event.getFile().getName().getExtension())) {
 			InputStream inputStream = event.getFile().getContent().getInputStream();
 			String filename = event.getFile().getName().getBaseName();
-			new ModuleInstaller().install(inputStream, filename);
+			
+			String username = System.getProperty("omodreloader.username");
+			String password = System.getProperty("omodreloader.password");
+			
+			new ModuleInstaller().install(inputStream, filename, username, password);
 		}
 	}
 	

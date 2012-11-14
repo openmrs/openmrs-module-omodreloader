@@ -40,14 +40,20 @@ public class ModuleInstaller {
 	
 	protected final Log log = LogFactory.getLog(getClass());
 	
-	public void install(InputStream inputStream, String filename) {
+	public void install(InputStream inputStream, String filename, String username, String password) {
 		log.info("Installing module " + filename);
 		
 		FileInputStream fileInputStream = null;
 		try {
 			Context.openSession();
+			
+			if (username != null) {
+				Context.authenticate(username, password);
+			}
+			
 			Context.addProxyPrivilege(OpenmrsConstants.PRIV_MANAGE_GLOBAL_PROPERTIES);
 			Context.addProxyPrivilege(OpenmrsConstants.PRIV_MANAGE_SCHEDULER);
+			
 			
 			Module tmpModule = new ModuleFileParser(inputStream).parse();
 			Module existingModule = ModuleFactory.getModuleById(tmpModule.getModuleId());
