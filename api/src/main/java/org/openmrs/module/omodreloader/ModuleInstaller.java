@@ -16,10 +16,13 @@ package org.openmrs.module.omodreloader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+
+import javax.servlet.ServletContext;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
@@ -60,9 +63,11 @@ public class ModuleInstaller {
 			List<Module> dependentModulesStopped = null;
 			
 			if (existingModule != null) {
+				log.info("Stopping existing module " + existingModule.getModuleId());
 				dependentModulesStopped = ModuleFactory.stopModule(existingModule, false, true);
 				
 				for (Module depMod : dependentModulesStopped) {
+					log.info("Stopping dependent module " + depMod.getModuleId());
 					WebModuleUtil.stopModule(depMod, ServletContextHolder.servletContext);
 				}
 				
@@ -75,19 +80,53 @@ public class ModuleInstaller {
 			
 			if (module != null) {
 				ModuleFactory.startModule(module);
-				WebModuleUtil.startModule(module, ServletContextHolder.servletContext, false);
+				boolean contextRefreshNeeded = false;
+				
+				log.info("Starting module " + module.getModuleId());
+				boolean moduleNeedsContextRefresh = WebModuleUtil.startModule(module, ServletContextHolder.servletContext, true);
+				if (moduleNeedsContextRefresh) {
+					contextRefreshNeeded = true;
+				}
+				
 				if (module.isStarted()) {
 					if (existingModule != null && dependentModulesStopped != null) {
 						for (Module depMod : sortStartupOrder(dependentModulesStopped)) {
+							log.info("Starting dependent module " + depMod.getModuleId());
 							ModuleFactory.startModule(depMod);
-							WebModuleUtil.startModule(depMod, ServletContextHolder.servletContext, false);
+							
+							moduleNeedsContextRefresh = WebModuleUtil.startModule(depMod, ServletContextHolder.servletContext, true);
+							if (moduleNeedsContextRefresh) {
+								contextRefreshNeeded = true;
+							}
 						}
 					}
+				}
+				
+				//We deferred refreshing context so that it happened only once for all modules.
+				if (contextRefreshNeeded) {
+					try {
+						WebModuleUtil.refreshWAC(ServletContextHolder.servletContext);
+					} catch (NoSuchMethodError e) {
+						//The method signature has changed since 1.8
+						Method method = WebModuleUtil.class.getMethod("refreshWAC", ServletContext.class, boolean.class, Module.class);
+						method.invoke(WebModuleUtil.class, ServletContextHolder.servletContext, true, null);
+					}
+				}
+				
+				//We need to load servlets and filters, because we delayed refreshing context.
+				WebModuleUtil.loadServlets(module, ServletContextHolder.servletContext);
+				WebModuleUtil.loadFilters(module, ServletContextHolder.servletContext);
+				
+				for (Module depMod : dependentModulesStopped) {
+					WebModuleUtil.loadServlets(depMod, ServletContextHolder.servletContext);
+					WebModuleUtil.loadFilters(depMod, ServletContextHolder.servletContext);
 				}
 			}
 			
 			inputStream.close();
 			fileInputStream.close();
+			
+			log.info("Finished installing module " + filename);
 		}
 		catch (Exception e) {
 			log.error("Failed to install module " + filename, e);
